@@ -30,14 +30,15 @@ if ('serviceWorker' in navigator) {
     };
     go();
   });
-  // the app opens from the worker's cache (sw.js); an installed app is often resumed rather than reopened, so also
-  // look for a new version whenever it comes back to the screen
+  // the app opens from the worker's cache (sw.js): look for a new version in the background on every start and,
+  // since an installed app is often resumed rather than reopened, whenever it comes back to the screen
   navigator.serviceWorker
     .register('sw.js', { scope: './', updateViaCache: 'none' })
-    .then((reg) =>
+    .then((reg) => {
+      reg.update().catch(() => {}); // on every start too: browsers don't always check on their own
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') reg.update().catch(() => {});
-      }),
-    )
+      });
+    })
     .catch(() => {});
 }

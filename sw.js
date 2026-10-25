@@ -3,7 +3,7 @@
 const PREFIX = 'cart-log-';
 // "Check for updates" in the app reads the version from this exact line, so keep its spacing:
 // prettier-ignore
-const CACHE=PREFIX+'4.2'; // keep in step with the version label in index.html
+const CACHE=PREFIX+'4.3'; // keep in step with the version label in index.html
 // caches this app used before the prefix existed; safe to remove, nothing else uses these names
 const LEGACY = /^cart-(v\d+|\d+\.\d+)$/;
 const SCOPE = self.registration.scope; // e.g. https://germani144-home.github.io/cart-log/
