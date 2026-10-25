@@ -43,3 +43,16 @@ test('the manifest keeps its id and scope', () => {
   const m = JSON.parse(read('manifest.json'));
   expect(m).toMatchObject({ id: 'cart-log-v1', start_url: './', scope: './' });
 });
+
+// Opening the app must not wait for the server: network-first made every open wait for one round trip per file
+// once the app was split into files (2026-10-25). The worker answers from this version's cache first.
+test('the service worker opens the app from its cache and installs every file fresh', () => {
+  const fetchHandler = sw.slice(sw.indexOf("addEventListener('fetch'"));
+  expect(fetchHandler).toMatch(/cacheFirst\(e\.request\)/);
+  const cacheFirst = sw.slice(sw.indexOf('async function cacheFirst'));
+  expect(cacheFirst.indexOf('c.match(')).toBeGreaterThan(-1);
+  expect(cacheFirst.indexOf('c.match(')).toBeLessThan(cacheFirst.indexOf('fetch('));
+  const install = sw.slice(sw.indexOf("addEventListener('install'"), sw.indexOf("addEventListener('activate'"));
+  expect(install).toMatch(/'\?v=' \+ CACHE/);
+  expect(install).toMatch(/cache: 'reload'/);
+});

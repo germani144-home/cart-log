@@ -75,7 +75,7 @@ Plain static files served by GitHub Pages from `main`: no build step, no framewo
 | `seed.js` | Built-in bilingual item database and categories |
 | `dishes-pack.json` | Starter dishes with recipes, loaded by the *Add starter dishes* button |
 | `firebase-config.js` | Firebase web config for the project |
-| `sw.js` | Service worker: caches the app for offline use (cache name `cart-log-X.Y` matches the app version) |
+| `sw.js` | Service worker: opens the app from its cache and updates it in the background (cache name `cart-log-X.Y` matches the app version) |
 | `manifest.json` | Install name, icons and colours; `scope` and `start_url` are `./`, so the installed app covers only `/cart-log/`, not the whole site |
 | `icon-*.png` | App icons |
 | `tests/`, `package.json`, `playwright.config.js`, `.prettierrc.json` | Dev-only: tests and formatting. Nothing here is loaded by the app |
@@ -117,7 +117,8 @@ Home log has its own address, but it still keeps strictly to its own cache and s
 
 - The service worker precaches the app's files, only handles requests under its own scope (`/cart-log/`) plus the pinned Firebase SDK, and reads only from its own cache.
 - On update it deletes only its own old caches (names starting with `cart-log-`), never other apps'.
-- Files are fetched network-first, bypassing the browser's HTTP cache, so a new deploy shows on the next open; when offline, the cached copy is used.
+- The app opens from its own cache (cache-first), so opening never waits for the network and works offline. Network-first made every open wait for one round trip per file once the app was split into files (found 2026-10-25), so don't go back to it.
+- How a release reaches a phone: the browser checks `sw.js` on every open (`updateViaCache: 'none'`) and `boot.js` asks again when the app comes back to the screen. A release changes the cache name, so the new worker downloads every file fresh (`?v=` so GitHub's CDN can't hand out an old copy, and `cache: 'reload'`) into a new cache and only takes over once all of them arrived; `boot.js` then reloads once (not while typing or dragging). The first open after a release still shows the old version for a moment. Files that aren't precached (the starter dishes) come from the server once and are kept; the pinned Firebase SDK uses the phone's normal browser cache.
 - `localStorage` keys are prefixed `cart-log.` (older `cl_` keys are moved over automatically).
 - On iPhone/iPad the manifest isn't linked and the address keeps `?list=CODE`, so Safari's "Add to Home Screen" starts the app at that address. The home-screen app has its own storage, separate from Safari's, and joins the list from the address by itself.
 

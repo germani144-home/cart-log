@@ -119,3 +119,63 @@ test('offline: the service worker serves the app and the list from this phone', 
   await expect(a.locator('#sync')).toHaveText('offline');
   await a.context().setOffline(false);
 });
+
+// Opening the app must not download it again (one round trip per file made it slow), and a new release must still
+// reach the phone by itself. Runs on its own copy of the app and its own server, so the test can "release" a version.
+test('opens from the phone without downloading the app; a new release takes over by itself', async ({
+  phone,
+}, testInfo) => {
+  test.skip(testInfo.project.name === 'iphone', 'same service worker; checked once');
+  const fs = require('fs');
+  const os = require('os');
+  const path = require('path');
+  const http = require('http');
+  const root = path.resolve(__dirname, '../..');
+  const copy = fs.mkdtempSync(path.join(os.tmpdir(), 'home-log-release-'));
+  fs.cpSync(root, copy, {
+    recursive: true,
+    filter: (f) => !/[/\\](\.git|node_modules|tests|test-results)([/\\]|$)/.test(f),
+  });
+  const asked = []; // what the server is asked for
+  const server = http.createServer((req, res) => {
+    const rel = decodeURIComponent(req.url.split('?')[0]).replace(/^\/cart-log\//, '');
+    asked.push(rel);
+    const file = path.join(copy, rel === '' ? 'index.html' : rel);
+    if (!file.startsWith(copy) || !fs.existsSync(file) || fs.statSync(file).isDirectory())
+      return res.writeHead(404).end();
+    const type = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
+    res.writeHead(200, {
+      'Content-Type': type[path.extname(file)] || 'application/octet-stream',
+      'Cache-Control': 'no-cache',
+    });
+    res.end(fs.readFileSync(file));
+  });
+  await new Promise((ok) => server.listen(0, '127.0.0.1', ok));
+  const base = `http://127.0.0.1:${server.address().port}/cart-log/`;
+  try {
+    const a = await phone({ serviceWorkers: 'allow', url: `${base}?list=${LIST}` });
+    await a.evaluate(() => navigator.serviceWorker.ready);
+    await a.reload();
+    await expect.poll(() => a.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
+    await a.reload(); // anything not saved at install is kept from here on
+    const ver = await a.locator('#ver').textContent();
+    asked.length = 0;
+    await a.reload();
+    await expect(a.locator('#ver')).toHaveText(ver);
+    const appFiles = asked.filter((u) => /(^|\.html|\.js|\.css)$/.test(u) && u !== 'sw.js');
+    expect(appFiles, 'opening the app downloaded app files').toEqual([]);
+
+    // "release" v99.0 on the server: only the version changes, like a real release
+    const edit = (f, from, to) =>
+      fs.writeFileSync(path.join(copy, f), fs.readFileSync(path.join(copy, f), 'utf8').replace(from, to));
+    edit('sw.js', /const CACHE=PREFIX\+'[\d.]+';/, "const CACHE=PREFIX+'99.0';");
+    edit('index.html', /id="ver">v[\d.]+</, 'id="ver">v99.0<');
+    await a.reload(); // opens as usual (still the old version); the new one installs meanwhile and the app reloads into it
+    await expect(a.locator('#ver')).toHaveText('v99.0', { timeout: 15_000 });
+    const keys = await a.evaluate(async () => (await caches.keys()).filter((k) => k.startsWith('cart-log-')));
+    expect(keys).toEqual(['cart-log-99.0']);
+  } finally {
+    server.close();
+    fs.rmSync(copy, { recursive: true, force: true });
+  }
+});
