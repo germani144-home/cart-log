@@ -325,6 +325,12 @@ input {
   word-break: break-word;
   cursor: pointer;
 }
+/* grocery rows: the English name sits on its own line under the Danish one */
+.item .txt .en {
+  display: block;
+  margin: 1px 0 0;
+  line-height: 1.2;
+}
 .item.done .txt {
   text-decoration: line-through;
   color: var(--mu);

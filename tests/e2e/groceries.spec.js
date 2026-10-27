@@ -19,6 +19,16 @@ test('a known item lands in its category with its standard unit and syncs to the
   await expect(a.locator('#cntG')).toHaveText('2');
 });
 
+test('on the list, the English name sits on its own line under the Danish one', async ({ phone }) => {
+  const a = await phone();
+  await addItem(a, 'gulerødder');
+  const box = (sel) => a.locator(`#todo .item .txt ${sel}`).boundingBox();
+  const [da, en] = [await box('.da'), await box('.en')];
+  expect(await a.locator('#todo .item .en').textContent()).toBe('Carrots');
+  expect(en.y).toBeGreaterThanOrEqual(da.y + da.height - 2);
+  expect(Math.abs(en.x - da.x)).toBeLessThan(2);
+});
+
 test('search ignores æ/ø/å spelling and a suggestion adds the item', async ({ phone }) => {
   const a = await phone();
   await a.fill('#newItem', 'aebl');
