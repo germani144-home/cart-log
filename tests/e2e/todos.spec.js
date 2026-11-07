@@ -118,6 +118,27 @@ test('the typing line under a heading keeps what is typed when the other phone c
   await expect.poll(() => todoRows(a)).toEqual(['#A', 'a2', '#B', 'b1', 'a1', 'from the other phone']);
 });
 
+test('a list holds up to 150 open to-dos (headings don’t count)', async ({ phone }) => {
+  const a = await phone();
+  await tab(a, 'todos');
+  const lines = ['Big list', ...Array.from({ length: 149 }, (_, i) => `- item ${i + 1}`)];
+  await paste(a, '#tdNew', lines.join('\n'));
+  await expect(a.locator('#tdN')).toHaveText(' · 149');
+  await expect(a.locator('#tdHint')).toHaveText('149 of 150');
+  await addTodo(a, 'number 150');
+  await expect(a.locator('#tdN')).toHaveText(' · 150');
+  await expect(a.locator('#tdNew')).toBeDisabled();
+  await expect(a.locator('#tdNew')).toHaveAttribute('placeholder', 'List is full (150). Tick or delete one first');
+  // headings can still be added
+  await a.tap('#tdHeadBtn');
+  await expect(a.locator('#tdNew')).toBeEnabled();
+  await addTodo(a, 'Another heading');
+  await expect(a.locator('#tdN')).toHaveText(' · 150');
+  // ticking one frees a place
+  await a.tap('#tdOpen .td:has-text("item 1") .tchk >> nth=0');
+  await expect(a.locator('#tdNew')).toBeEnabled();
+});
+
 test('pasting several lines adds headings and items; a bare "-" is skipped', async ({ phone }) => {
   const a = await phone();
   await tab(a, 'todos');

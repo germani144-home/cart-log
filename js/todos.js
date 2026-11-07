@@ -3,7 +3,7 @@
 // "Home" (id main) is the original shared list: its to-dos have no list field. Extra lists are described by
 // meta docs "tl_<id>" {id,kind:'tl',name,emoji,ts}: shared ones under the list code (lists/{code}/meta + todos),
 // private ones under this phone's own code (lists/{me}/meta + todos), which only this phone knows.
-const MAX_OPEN_TODOS = 50;
+const MAX_OPEN_TODOS = 150;
 const LIST_ICONS = ['📝', '🚲', '🔧', '🏠', '🛒', '💼', '🎁', '✈️', '🏋️', '📚', '🌱', '💡'];
 const homeList = () => ({
   id: 'main',
@@ -215,11 +215,11 @@ function renderTodos() {
   const full = nItems >= MAX_OPEN_TODOS && !headingMode;
   $('#tdNew').disabled = full;
   $('#tdNew').placeholder = full
-    ? 'List is full (50). Tick or delete one first'
+    ? `List is full (${MAX_OPEN_TODOS}). Tick or delete one first`
     : headingMode
       ? 'Add a heading…'
       : 'Add an item…';
-  $('#tdHint').textContent = nItems >= 40 ? `${nItems} of ${MAX_OPEN_TODOS}` : '';
+  $('#tdHint').textContent = nItems >= MAX_OPEN_TODOS - 10 ? `${nItems} of ${MAX_OPEN_TODOS}` : '';
   $('#cntT').textContent = nItems || '';
 }
 // H button: the next entry becomes a heading; it switches back to normal to-dos after one heading
