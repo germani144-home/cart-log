@@ -875,6 +875,34 @@ dialog button.wide {
 .td.hd.lift .hdn {
   display: inline;
 }
+.td.hd .hadd {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--td) 22%, transparent);
+  color: var(--td);
+  font-size: 20px;
+  font-weight: 700;
+}
+.td.hd .hadd + .x {
+  margin-left: 4px;
+}
+.td.tadd {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+.tadd-in {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 16px;
+  border: 1px dashed color-mix(in srgb, var(--td) 60%, transparent);
+  border-radius: 10px;
+  background: var(--card);
+  color: var(--tx);
+}
 .td.hd:not(:first-child) {
   border-top: 6px solid var(--card);
 }

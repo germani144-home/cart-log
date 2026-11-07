@@ -104,6 +104,52 @@ function addTodo(text, head) {
   });
   return true;
 }
+// ＋ on a heading opens a typing line at the end of that section; Enter adds an item there and keeps the line open
+var addUnderHeading = null, // id of the heading whose section has the typing line
+  renderingTodos = false;
+function openHeadingAdd(id) {
+  if (foldedHeadings[id]) {
+    delete foldedHeadings[id];
+    save('cl_folded', foldedHeadings);
+  }
+  addUnderHeading = id;
+  renderTodos();
+  const line = $('#tdOpen .tadd-in');
+  if (line) line.focus();
+}
+function closeHeadingAdd() {
+  if (addUnderHeading == null) return;
+  addUnderHeading = null;
+  renderTodos();
+}
+// a new item at the end of the heading's section (just before the next heading)
+function addUnderHeadingItem(text) {
+  text = text.trim();
+  if (!text || openTodos().filter(isTodoItem).length >= MAX_OPEN_TODOS) return false;
+  const open = openTodos(),
+    h = open.findIndex((t) => t.id === addUnderHeading);
+  if (h < 0) return false;
+  let end = h;
+  while (end + 1 < open.length && !open[end + 1].head) end++;
+  const next = open[end + 1],
+    l = currentList(),
+    r = orderBetween(open[end].order || 0, next ? next.order || 0 : null),
+    todo = {
+      id: newId(),
+      text,
+      done: false,
+      order: r.renumber ? open[end].order || 0 : r.order,
+      ts: Date.now(),
+      ...(l.id === 'main' ? {} : { list: l.id }),
+    };
+  saveTodo(todo);
+  if (r.renumber) {
+    const ids = open.map((t) => t.id);
+    ids.splice(end + 1, 0, todo.id);
+    renumberAll(ids);
+  }
+  return true;
+}
 function renderTodos() {
   if (!listCode) return;
   if (dragState || editingTodoId) {
@@ -125,16 +171,37 @@ function renderTodos() {
     else if (cur) sec[cur] = (sec[cur] || 0) + 1;
   });
   let hide = false;
+  // the typing line under a heading (＋): keep what's typed and the keyboard if the list redraws meanwhile
+  if (addUnderHeading && !open.some((t) => t.id === addUnderHeading && t.head)) addUnderHeading = null;
+  const typing = $('#tdOpen .tadd-in'),
+    keep = typing && { value: typing.value, focused: document.activeElement === typing };
+  const rows = open.map((t) => {
+    if (t.head) hide = !!foldedHeadings[t.id];
+    return t.head
+      ? `<div class="td hd${hide ? ' closed' : ''}" data-id="${esc(t.id)}"><button class="hcv" data-hc="${esc(t.id)}" aria-label="${hide ? 'Unfold' : 'Fold'}" aria-expanded="${!hide}">▾</button><div class="tdt" data-xe="${esc(t.id)}">${esc(t.text)}</div>${hide && sec[t.id] ? `<span class="hcn">${sec[t.id]}</span>` : ''}<span class="hdn"></span><button class="hadd" data-ha="${esc(t.id)}" aria-label="Add an item under ${esc(t.text)}">＋</button><button class="x" data-xd="${esc(t.id)}" aria-label="Delete heading">✕</button></div>`
+      : `<div class="td${hide ? ' cz' : ''}" data-id="${esc(t.id)}"><button class="tchk" data-xt="${esc(t.id)}" aria-label="Done"></button><span class="rn">•</span><div class="tdt" data-xe="${esc(t.id)}">${esc(t.text)}</div><button class="x" data-xd="${esc(t.id)}" aria-label="Delete">✕</button></div>`;
+  });
+  if (addUnderHeading) {
+    const h = open.findIndex((t) => t.id === addUnderHeading);
+    let end = h;
+    while (end + 1 < open.length && !open[end + 1].head) end++;
+    const name = open[h].text;
+    rows.splice(
+      end + 1,
+      0,
+      `<div class="td tadd"><span class="rn">•</span><input class="tadd-in" placeholder="Add to ${esc(name)}…" aria-label="New item under ${esc(name)}" enterkeyhint="done" autocapitalize="sentences" autocomplete="off"></div>`,
+    );
+  }
+  renderingTodos = true;
   $('#tdOpen').innerHTML = open.length
-    ? open
-        .map((t) => {
-          if (t.head) hide = !!foldedHeadings[t.id];
-          return t.head
-            ? `<div class="td hd${hide ? ' closed' : ''}" data-id="${esc(t.id)}"><button class="hcv" data-hc="${esc(t.id)}" aria-label="${hide ? 'Unfold' : 'Fold'}" aria-expanded="${!hide}">▾</button><div class="tdt" data-xe="${esc(t.id)}">${esc(t.text)}</div>${hide && sec[t.id] ? `<span class="hcn">${sec[t.id]}</span>` : ''}<span class="hdn"></span><button class="x" data-xd="${esc(t.id)}" aria-label="Delete heading">✕</button></div>`
-            : `<div class="td${hide ? ' cz' : ''}" data-id="${esc(t.id)}"><button class="tchk" data-xt="${esc(t.id)}" aria-label="Done"></button><span class="rn">•</span><div class="tdt" data-xe="${esc(t.id)}">${esc(t.text)}</div><button class="x" data-xd="${esc(t.id)}" aria-label="Delete">✕</button></div>`;
-        })
-        .join('')
+    ? rows.join('')
     : '<div class="empty">Nothing to do 🎉<br>Add a to-do above.</div>';
+  renderingTodos = false;
+  const line = $('#tdOpen .tadd-in');
+  if (line && keep) {
+    line.value = keep.value;
+    if (keep.focused) line.focus();
+  }
   $('#tdN').textContent = nItems ? ` · ${nItems}` : '';
   $('#tdTip').textContent = open.length > 1 ? 'hold & drag to reorder' : '';
   $('#tdDoneCard').hidden = !done.length;
@@ -419,6 +486,11 @@ function editTodoText(id) {
 }
 
 $('#tdOpen').addEventListener('click', (e) => {
+  const add = e.target.closest('[data-ha]');
+  if (add) {
+    if (Date.now() >= ignoreTapsUntil) openHeadingAdd(add.dataset.ha);
+    return;
+  }
   const b = e.target.closest('[data-hc]');
   if (!b || Date.now() < ignoreTapsUntil) return;
   const id = b.dataset.hc;
@@ -426,6 +498,24 @@ $('#tdOpen').addEventListener('click', (e) => {
   else foldedHeadings[id] = true;
   save('cl_folded', foldedHeadings);
   renderTodos();
+});
+$('#tdOpen').addEventListener('keydown', (e) => {
+  if (!e.target.classList.contains('tadd-in')) return;
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (addUnderHeadingItem(e.target.value)) {
+      const line = $('#tdOpen .tadd-in');
+      if (line) line.value = '';
+    }
+  } else if (e.key === 'Escape') closeHeadingAdd();
+});
+// tapping away from an empty typing line closes it
+$('#tdOpen').addEventListener('focusout', (e) => {
+  if (!e.target.classList.contains('tadd-in') || renderingTodos) return;
+  setTimeout(() => {
+    const line = $('#tdOpen .tadd-in');
+    if (line && document.activeElement !== line && !line.value.trim()) closeHeadingAdd();
+  }, 0);
 });
 // hold a row, then drag it. Only a stationary press starts a drag, so normal swipes still scroll the page.
 const todoListEl = $('#tdOpen');
@@ -454,6 +544,12 @@ function cancelPress() {
 const isHeadingRow = (n) => n && n.classList.contains('hd');
 function startDrag(el, y) {
   if (editingTodoId || !el.isConnected) return;
+  // the typing line under a heading isn't a row: take it away before anything moves
+  const line = $('#tdOpen .tadd');
+  if (line) {
+    addUnderHeading = null;
+    line.remove();
+  }
   const group = [];
   if (isHeadingRow(el)) {
     for (let n = el.nextElementSibling; n && !isHeadingRow(n); n = n.nextElementSibling) group.push(n);
@@ -678,7 +774,8 @@ todoListEl.addEventListener(
   'touchstart',
   (e) => {
     const el = e.target.closest('.td');
-    if (e.touches.length !== 1 || !el || e.target.closest('button,textarea')) return cancelPress();
+    if (e.touches.length !== 1 || !el || el.classList.contains('tadd') || e.target.closest('button,textarea,input'))
+      return cancelPress();
     const t = e.touches[0];
     startPress(el, t.clientX, t.clientY, true);
   },
@@ -713,7 +810,7 @@ todoListEl.addEventListener('contextmenu', (e) => {
 });
 todoListEl.addEventListener('mousedown', (e) => {
   const el = e.target.closest('.td');
-  if (e.button !== 0 || !el || e.target.closest('button,textarea')) return;
+  if (e.button !== 0 || !el || el.classList.contains('tadd') || e.target.closest('button,textarea,input')) return;
   startPress(el, e.clientX, e.clientY, false);
 });
 document.addEventListener('mousemove', (e) => {

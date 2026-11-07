@@ -186,6 +186,13 @@ test.describe('to-dos', () => {
     expect(L.orderForMovedRow(null, null, undefined)).toEqual({ keep: true }); // the only row
     expect(L.orderForMovedRow(1000, 1000, 5)).toEqual({ renumber: true });
   });
+  test('a new row between two rows goes halfway, or 1000 past the end', () => {
+    expect(L.orderBetween(1000, 2000)).toEqual({ order: 1500 });
+    expect(L.orderBetween(3000, null)).toEqual({ order: 4000 });
+    expect(L.orderBetween(null, 1000)).toEqual({ order: 0 });
+    expect(L.orderBetween(null, null)).toEqual({ order: 1000 });
+    expect(L.orderBetween(1000, 1000)).toEqual({ renumber: true });
+  });
   test('a dragged section is spaced evenly between its new neighbours', () => {
     expect(L.ordersForMovedSection(1000, 5000, [2000, 3000])).toEqual({ keep: true });
     expect(L.ordersForMovedSection(1000, 4000, [5000, 6000])).toEqual({ orders: [2000, 3000] });
