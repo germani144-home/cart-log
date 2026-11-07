@@ -286,6 +286,20 @@ function orderForMovedRow(prevOrder, nextOrder, ownOrder) {
 }
 
 /**
+ * Order for a new row placed between two rows (null at an end): halfway between them, or 1000 past the end.
+ * → {order}, or {renumber: true} if there's no room left between them.
+ */
+function orderBetween(prevOrder, nextOrder) {
+  const a = prevOrder,
+    b = nextOrder;
+  if (a == null && b == null) return { order: 1000 };
+  if (a == null) return { order: b - 1000 };
+  if (b == null) return { order: a + 1000 };
+  if (b - a < 1e-6) return { renumber: true };
+  return { order: (a + b) / 2 };
+}
+
+/**
  * New orders for a dragged section (a heading and its rows, in screen order), evenly spaced between the new
  * neighbours. → {keep: true}, {renumber: true} or {orders: [...]} (one per row), as for orderForMovedRow.
  */
@@ -567,6 +581,7 @@ if (typeof module === 'object' && module.exports)
     compareTodoOrder,
     parseTodoText,
     orderForMovedRow,
+    orderBetween,
     ordersForMovedSection,
     EXP_FORMAT,
     EXP_VERSION,
