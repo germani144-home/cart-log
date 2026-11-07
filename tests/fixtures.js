@@ -195,7 +195,7 @@ const cartNames = (page) => page.$$eval('#done .item .da', (e) => e.map((x) => x
 const todoRows = (page) =>
   page.$$eval('#tdOpen .td', (e) =>
     e
-      .filter((x) => x.offsetParent !== null)
+      .filter((x) => x.offsetParent !== null && !x.classList.contains('tadd')) // not the typing line under a heading
       .map(
         (x) =>
           (x.classList.contains('hd') ? (x.classList.contains('closed') ? '#▸' : '#') : '') +

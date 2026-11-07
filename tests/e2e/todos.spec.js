@@ -65,6 +65,59 @@ test('headings: H adds one heading then switches back; bullets for items; deleti
   await expect.poll(() => todoRows(a)).toEqual(['Fix drawer']);
 });
 
+test('＋ on a heading adds items at the end of that section, unfolding it, and the other phone gets them there', async ({
+  phone,
+  cloud,
+}) => {
+  const a = await phone();
+  const b = await phone({ device: 'iPhone 13' });
+  await tab(a, 'todos');
+  await tab(b, 'todos');
+  await paste(a, '#tdNew', 'A\n- a1\nB\n- b1\nC\n- c1');
+  await a.tap('#tdOpen .td.hd:has-text("B") .hcv'); // fold B
+  await a.tap('#tdOpen .td.hd:has-text("B") .hadd');
+  await expect(a.locator('#tdOpen .tadd-in')).toBeFocused();
+  await expect(a.locator('#tdOpen .tadd-in')).toHaveAttribute('placeholder', 'Add to B…');
+  await a.keyboard.type('b2');
+  await a.keyboard.press('Enter');
+  await expect(a.locator('#tdOpen .tadd-in')).toBeFocused(); // stays open for the next one
+  await a.keyboard.type('b3');
+  await a.keyboard.press('Enter');
+  await expect.poll(() => todoRows(a)).toEqual(['#A', 'a1', '#B', 'b1', 'b2', 'b3', '#C', 'c1']);
+  await expect.poll(() => todoRows(b)).toEqual(['#A', 'a1', '#B', 'b1', 'b2', 'b3', '#C', 'c1']);
+  expect(ordered(shared(cloud))).toEqual(['#A', 'a1', '#B', 'b1', 'b2', 'b3', '#C', 'c1']);
+  expect(shared(cloud).find((t) => t.text === 'b2')).not.toHaveProperty('head');
+  // the last heading: items go at the very end
+  await a.tap('#tdOpen .td.hd:has-text("C") .hadd');
+  await a.keyboard.type('c2');
+  await a.keyboard.press('Enter');
+  await expect.poll(() => todoRows(a)).toEqual(['#A', 'a1', '#B', 'b1', 'b2', 'b3', '#C', 'c1', 'c2']);
+  // tapping away with the line empty closes it
+  await a.evaluate(() => document.activeElement.blur());
+  await expect(a.locator('#tdOpen .tadd')).toHaveCount(0);
+  await expect.poll(() => todoRows(a)).toEqual(['#A', 'a1', '#B', 'b1', 'b2', 'b3', '#C', 'c1', 'c2']);
+});
+
+test('the typing line under a heading keeps what is typed when the other phone changes the list, and drag still works', async ({
+  phone,
+}) => {
+  const a = await phone();
+  const b = await phone({ device: 'iPhone 13' });
+  await tab(a, 'todos');
+  await tab(b, 'todos');
+  await paste(a, '#tdNew', 'A\n- a1\n- a2\nB\n- b1');
+  await a.tap('#tdOpen .td.hd:has-text("A") .hadd');
+  await a.keyboard.type('half-typed');
+  await addTodo(b, 'from the other phone');
+  await expect.poll(() => todoRows(a)).toContain('from the other phone');
+  await expect(a.locator('#tdOpen .tadd-in')).toHaveValue('half-typed');
+  await expect(a.locator('#tdOpen .tadd-in')).toBeFocused();
+  await a.keyboard.press('Escape');
+  await expect(a.locator('#tdOpen .tadd')).toHaveCount(0);
+  await dragTodo(a, 'a1', 'b1', 'after');
+  await expect.poll(() => todoRows(a)).toEqual(['#A', 'a2', '#B', 'b1', 'a1', 'from the other phone']);
+});
+
 test('pasting several lines adds headings and items; a bare "-" is skipped', async ({ phone }) => {
   const a = await phone();
   await tab(a, 'todos');
