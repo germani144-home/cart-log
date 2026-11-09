@@ -4,3 +4,5 @@ home-log-*.json
 node_modules/
 test-results/
 playwright-report/
+# Claude Code saves approved commands here, word for word (they can contain passwords or tokens): never commit it
+.claude/settings.local.json
