@@ -235,6 +235,13 @@ test.describe('export / import', () => {
     expect(errs(file({ meta: [{ id: 'tl_x', kind: 'tlmain', name: 'x' }] }))[0]).toContain('must be "tl"');
     expect(errs({ ...file({}), extra: 1 })).toEqual(['unknown top-level field "extra"']);
   });
+  test('a to-do link survives import, and only http(s) links are accepted', () => {
+    const t = { id: 't', text: 'Shelf', url: 'https://ikea.com/x', done: false, order: 1000 };
+    expect(L.validateExport(file({ todos: [t] })).data.shared.todos[0].url).toBe('https://ikea.com/x');
+    const errs = (url) => L.validateExport(file({ todos: [{ ...t, url }] })).errors || [];
+    expect(errs('javascript:alert(1)')[0]).toContain('must be an http(s) link');
+    expect(errs('https://' + 'a'.repeat(2000))[0]).toContain('must be an http(s) link');
+  });
   test('export keeps only known fields and documents with an id', () => {
     const out = L.exportSection(
       {
@@ -268,4 +275,25 @@ test('the version in sw.js, with or without spaces', () => {
   expect(L.versionFromServiceWorker('nothing here')).toBeNull();
   const label = fs.readFileSync(path.join(root, 'index.html'), 'utf8').match(/id="ver">v([\d.]+)</)[1];
   expect(L.versionFromServiceWorker(fs.readFileSync(path.join(root, 'sw.js'), 'utf8'))).toBe(label);
+});
+
+test('links: only http(s) are safe, and a link is split from the words around it', () => {
+  expect(L.safeUrl('https://a.dk/x')).toBe('https://a.dk/x');
+  expect(L.safeUrl('www.a.dk')).toBe('https://www.a.dk/');
+  expect(L.safeUrl('javascript:alert(1)')).toBeNull();
+  expect(L.safeUrl('data:text/html,hi')).toBeNull();
+  expect(L.shortUrl('https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/')).toBe(
+    'ikea.com/dk/da/p/billy-bogreol-hvid…',
+  );
+  expect(L.splitLink('Shelf https://ikea.com/x')).toEqual({ text: 'Shelf', url: 'https://ikea.com/x' });
+  expect(L.splitLink('Buy this: https://a.dk/b).')).toEqual({ text: 'Buy this', url: 'https://a.dk/b' });
+  expect(L.splitLink('Køb (https://a.dk) i morgen')).toEqual({ text: 'Køb i morgen', url: 'https://a.dk/' });
+  expect(L.splitLink('https://a.dk')).toEqual({ text: 'a.dk', url: 'https://a.dk/' });
+  expect(L.splitLink('plain text')).toEqual({ text: 'plain text' });
+  expect(L.splitLink('javascript:alert(1)')).toEqual({ text: 'javascript:alert(1)' });
+  expect(L.linkSegments('see https://a.dk now')).toEqual([
+    { text: 'see ' },
+    { url: 'https://a.dk/', label: 'a.dk' },
+    { text: ' now' },
+  ]);
 });

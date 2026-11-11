@@ -875,6 +875,28 @@ dialog button.wide {
 .td.hd.lift .hdn {
   display: inline;
 }
+/* links in to-dos */
+.tlink {
+  color: var(--td);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+.td.done .tlink {
+  color: inherit;
+}
+.td .lked {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  color: var(--td);
+  font-size: 17px;
+}
+.td .lked + .x {
+  margin-left: 2px;
+}
 .td.hd .hadd {
   flex: none;
   width: 34px;

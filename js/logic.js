@@ -317,6 +317,61 @@ function ordersForMovedSection(prevOrder, nextOrder, ownOrders) {
   return { orders: ownOrders.map((_, k) => start + step * (k + 1)) };
 }
 
+// ---------- links in to-dos ----------
+
+const URL_PATTERN = /\b(?:https?:\/\/|www\.)[^\s<>"']+/i;
+/** A typed link without the punctuation that ends a sentence ("…/a)." → "…/a"); keeps ")" that has a "(" inside. */
+function trimUrlEnd(raw) {
+  let u = raw.replace(/[.,;:!?'"]+$/, '');
+  while (u.endsWith(')') && (u.match(/\(/g) || []).length < (u.match(/\)/g) || []).length) u = u.slice(0, -1);
+  return u.replace(/[.,;:!?'"]+$/, '');
+}
+/** A web address as a full http(s) link ("www.x.dk" → "https://www.x.dk/"), or null for anything else (javascript:, mailto:, …). */
+function safeUrl(u) {
+  try {
+    const x = new URL(/^www\./i.test(u) ? 'https://' + u : u);
+    return x.protocol === 'http:' || x.protocol === 'https:' ? x.href : null;
+  } catch {
+    return null;
+  }
+}
+/** Short display text for a link: "https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/" → "ikea.com/dk/da/p/billy-bogreol-hvid…". */
+function shortUrl(u) {
+  const x = new URL(u);
+  const s = (x.hostname.replace(/^www\./, '') + x.pathname).replace(/\/$/, '');
+  return s.length > 36 ? s.slice(0, 35) + '…' : s;
+}
+/**
+ * A typed to-do with a link in it → {text, url}: the words around the link become its text ("Shelf https://…" →
+ * text "Shelf"); a bare link gets its short form as text. Without a usable http(s) link → {text} unchanged.
+ */
+function splitLink(text) {
+  const m = URL_PATTERN.exec(text);
+  if (!m) return { text };
+  const raw = trimUrlEnd(m[0]),
+    url = safeUrl(raw);
+  if (!url) return { text };
+  const rest = (text.slice(0, m.index) + text.slice(m.index + raw.length))
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s:–\-.,;()]+|[\s:–\-.,;()]+$/g, '');
+  return { text: rest || shortUrl(url), url };
+}
+/** Older to-dos keep links inside their text: split it into plain parts {text} and links {url, label}. */
+function linkSegments(text) {
+  const out = [];
+  let rest = text;
+  for (let m = URL_PATTERN.exec(rest); m; m = URL_PATTERN.exec(rest)) {
+    const raw = trimUrlEnd(m[0]),
+      url = safeUrl(raw);
+    if (m.index) out.push({ text: rest.slice(0, m.index) });
+    out.push(url ? { url, label: shortUrl(url) } : { text: raw });
+    rest = rest.slice(m.index + raw.length);
+  }
+  if (rest) out.push({ text: rest });
+  return out;
+}
+
 // ---------- export / import ----------
 // File: {format:'home-log-export', version:1, exportedAt, appVersion,
 //        shared: {items, catalog, cats, todos, dishes, meta}, private: {todos, meta} | null}
@@ -346,6 +401,9 @@ const FIELD_CHECKS = {
   bool: (v) => typeof v === 'boolean' || 'must be true or false',
   unit: (v) => UNITS.includes(v) || `must be one of ${UNITS.join(', ')}`,
   color: (v) => (typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)) || 'must be a colour like #2F855A',
+  url: (v) =>
+    (typeof v === 'string' && v.length <= 2000 && /^https?:\/\//i.test(v) && safeUrl(v) !== null) ||
+    'must be an http(s) link',
   is: (x) => (v) => v === x || `must be "${x}"`,
 };
 const V = FIELD_CHECKS; // short name for the specs below
@@ -378,7 +436,16 @@ const SPEC = {
     at: V.ts,
   },
   cats: { id: V.id, da: V.str(100), en: V.str(100), color: V.color },
-  todos: { id: V.id, text: V.str(1000), done: V.bool, order: V.num, ts: V.ts, head: V.bool, list: V.id },
+  todos: {
+    id: V.id,
+    text: V.str(1000),
+    url: V.url,
+    done: V.bool,
+    order: V.num,
+    ts: V.ts,
+    head: V.bool,
+    list: V.id,
+  },
   dishes: {
     id: V.id,
     name: V.str(200),
@@ -582,6 +649,10 @@ if (typeof module === 'object' && module.exports)
     parseTodoText,
     orderForMovedRow,
     orderBetween,
+    safeUrl,
+    shortUrl,
+    splitLink,
+    linkSegments,
     ordersForMovedSection,
     EXP_FORMAT,
     EXP_VERSION,

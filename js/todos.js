@@ -93,9 +93,11 @@ function addTodo(text, head) {
         break;
       }
   } // new items land in the last section: unfold it
+  const link = head ? { text } : splitLink(text); // a link in an item: its own field, the words around it as text
   saveTodo({
     id: newId(),
-    text,
+    text: link.text,
+    ...(link.url ? { url: link.url } : {}),
     done: false,
     order: currentListTodos().reduce((m, t) => Math.max(m, t.order || 0), 0) + 1000,
     ts: Date.now(),
@@ -134,9 +136,11 @@ function addUnderHeadingItem(text) {
   const next = open[end + 1],
     l = currentList(),
     r = orderBetween(open[end].order || 0, next ? next.order || 0 : null),
+    link = splitLink(text),
     todo = {
       id: newId(),
-      text,
+      text: link.text,
+      ...(link.url ? { url: link.url } : {}),
       done: false,
       order: r.renumber ? open[end].order || 0 : r.order,
       ts: Date.now(),
@@ -150,6 +154,70 @@ function addUnderHeadingItem(text) {
   }
   return true;
 }
+// ---------- links in to-dos ----------
+// An item's link is kept in its own `url` field and shown as its text; older items may still have links inside the
+// text, which are shown as links too. Only http(s) links are ever made clickable (see safeUrl in logic.js).
+const linkHtml = (url, label) =>
+  `<a class="tlink" href="${esc(url)}" data-link="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
+function todoTextHtml(t) {
+  const url = t.url && safeUrl(t.url);
+  if (url) return linkHtml(url, t.text);
+  return linkSegments(t.text)
+    .map((s) => (s.url ? linkHtml(s.url, s.label) : esc(s.text)))
+    .join('');
+}
+// tapping a link asks first, then opens it in the browser
+$('#paneT').addEventListener('click', (e) => {
+  const a = e.target.closest('a[data-link]');
+  if (!a) return;
+  e.preventDefault();
+  e.stopPropagation(); // not an edit of the row's text
+  if (Date.now() < ignoreTapsUntil) return;
+  const url = safeUrl(a.dataset.link);
+  if (url && confirm(`Open this link?\n\n${url}`)) window.open(url, '_blank', 'noopener,noreferrer');
+});
+// ✎ on a link item: change the text shown and/or the link (an empty link removes it)
+let linkEditId = null;
+function openLinkDialog(id) {
+  const t = todoById(id);
+  if (!t) return;
+  linkEditId = id;
+  $('#lkText').value = t.text;
+  $('#lkUrl').value = t.url || '';
+  $('#lkHint').textContent = 'Leave the link empty to remove it.';
+  $('#lkDlg').showModal();
+  $('#lkDlg .dt').focus();
+}
+function saveLinkDialog() {
+  const t = todoById(linkEditId);
+  if (!t) return $('#lkDlg').close();
+  const raw = $('#lkUrl').value.trim(),
+    url = raw ? safeUrl(raw) : null;
+  if (raw && !url) {
+    $('#lkHint').textContent = 'That doesn’t look like a web link (https://…).';
+    return $('#lkUrl').focus();
+  }
+  const text = $('#lkText').value.trim().replace(/\s+/g, ' ') || (url ? shortUrl(url) : '');
+  if (!text) return $('#lkText').focus();
+  const { url: _old, ...rest } = t;
+  saveTodo({ ...rest, text, ...(url ? { url } : {}) });
+  $('#lkDlg').close();
+}
+$('#tdOpen').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-le]');
+  if (b && Date.now() >= ignoreTapsUntil) openLinkDialog(b.dataset.le);
+});
+$('#lkSave').onclick = saveLinkDialog;
+$('#lkCancel').onclick = () => $('#lkDlg').close();
+['#lkText', '#lkUrl'].forEach((s) =>
+  $(s).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      saveLinkDialog();
+    }
+  }),
+);
+
 function renderTodos() {
   if (!listCode) return;
   if (dragState || editingTodoId) {
@@ -179,7 +247,7 @@ function renderTodos() {
     if (t.head) hide = !!foldedHeadings[t.id];
     return t.head
       ? `<div class="td hd${hide ? ' closed' : ''}" data-id="${esc(t.id)}"><button class="hcv" data-hc="${esc(t.id)}" aria-label="${hide ? 'Unfold' : 'Fold'}" aria-expanded="${!hide}">▾</button><div class="tdt" data-xe="${esc(t.id)}">${esc(t.text)}</div>${hide && sec[t.id] ? `<span class="hcn">${sec[t.id]}</span>` : ''}<span class="hdn"></span><button class="hadd" data-ha="${esc(t.id)}" aria-label="Add an item under ${esc(t.text)}">＋</button><button class="x" data-xd="${esc(t.id)}" aria-label="Delete heading">✕</button></div>`
-      : `<div class="td${hide ? ' cz' : ''}" data-id="${esc(t.id)}"><button class="tchk" data-xt="${esc(t.id)}" aria-label="Done"></button><span class="rn">•</span><div class="tdt" data-xe="${esc(t.id)}">${esc(t.text)}</div><button class="x" data-xd="${esc(t.id)}" aria-label="Delete">✕</button></div>`;
+      : `<div class="td${hide ? ' cz' : ''}" data-id="${esc(t.id)}"><button class="tchk" data-xt="${esc(t.id)}" aria-label="Done"></button><span class="rn">•</span><div class="tdt" data-xe="${esc(t.id)}">${todoTextHtml(t)}</div>${t.url ? `<button class="lked" data-le="${esc(t.id)}" aria-label="Edit link">✎</button>` : ''}<button class="x" data-xd="${esc(t.id)}" aria-label="Delete">✕</button></div>`;
   });
   if (addUnderHeading) {
     const h = open.findIndex((t) => t.id === addUnderHeading);
@@ -209,7 +277,7 @@ function renderTodos() {
   $('#tdDone').innerHTML = done
     .map(
       (t) =>
-        `<div class="td done" data-id="${esc(t.id)}"><button class="tchk" data-xt="${esc(t.id)}" aria-label="Undo">✓</button><div class="tdt">${esc(t.text)}</div><button class="x" data-xd="${esc(t.id)}" aria-label="Delete">✕</button></div>`,
+        `<div class="td done" data-id="${esc(t.id)}"><button class="tchk" data-xt="${esc(t.id)}" aria-label="Undo">✓</button><div class="tdt">${todoTextHtml(t)}</div><button class="x" data-xd="${esc(t.id)}" aria-label="Delete">✕</button></div>`,
     )
     .join('');
   const full = nItems >= MAX_OPEN_TODOS && !headingMode;

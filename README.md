@@ -23,6 +23,7 @@ Live: https://germani144-home.github.io/cart-log/ (the repo kept its original na
 - Tap the selected list's chip again to rename it, change its icon, or delete it with its to-dos.
 - The title on the list card ("To do" for Home, the list's name for others) can be renamed by tapping it; clearing it brings back the default. Shared lists sync the title, private ones keep it private.
 - Each list is an ordered list of bulleted to-dos (up to 150 open; headings don't count). Tap **H** next to the input to add the next entry as a **heading** instead (it switches back after one); headings group to-dos into sections, show bigger and bolder than to-dos, and have no tick box. Hold and drag a heading to move its whole section (its to-dos fold under it while dragging and come along); drag a single to-do to reorder it within a section or move it to another. To-dos above the first heading stay on top. Deleting a heading asks first; its to-dos stay in the list. Tap the ▾ arrow on a heading to fold its section (the heading shows how many items are hidden); folding is per phone and remembered, and adding an item to a folded last section unfolds it. The tab badge counts the open to-dos (not headings) of the list you're on.
+- A to-do that contains a web link (`https://…` or `www.…`) becomes a **link**: the link is kept separately and the words around it are shown as the to-do's text (a bare link shows a short version like `ikea.com/dk/…`). Tapping the link asks "Open this link?" first, then opens it in the browser. Tap ✎ on the row to change the text shown or the link itself (empty link = plain to-do); tapping next to the text still edits the text. Only http(s) links are ever made clickable.
 - Every heading has a **＋** button: it opens a typing line at the end of that section (unfolding it if folded), so items go straight under that heading. Enter adds one and keeps the line open for the next; tap away with it empty to close it.
 - Paste several lines into *Add an item…* to add them all at once: lines starting with `-` (or `•`, `*`) become to-dos, other lines become headings, and a bare `-` is skipped. It asks before adding.
 - Tick to move an item to Done (struck through, faded).
@@ -92,7 +93,7 @@ Everything for one list lives under its code:
 lists/{code}/items     grocery items (name, category, amount, unit, done)
 lists/{code}/catalog   items added by the household, shared across the list
 lists/{code}/cats      custom categories and their colours
-lists/{code}/todos     to-dos (text, order, done, head: true for headings, list: absent for Home, else the list's id)
+lists/{code}/todos     to-dos (text, url: the link if it has one, order, done, head: true for headings, list: absent for Home, else the list's id)
 lists/{code}/dishes    saved dishes (name, serves, ingredients: [{cid, da, en, amt, unit}])
 lists/{code}/meta      list settings: "dishes" (title of the dish list), "tl_main" (Home's name/icon/card title),
                        "tl_<id>" (each extra shared to-do list: name, emoji, optional card title)

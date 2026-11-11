@@ -43,7 +43,7 @@
     <div id="main" hidden>
       <header>
         <h1 class="brand">
-          <img src="icon-192.png" width="30" height="30" alt="" />Home log<span class="ver" id="ver">v4.6</span>
+          <img src="icon-192.png" width="30" height="30" alt="" />Home log<span class="ver" id="ver">v4.7</span>
         </h1>
         <!-- version: bump together with the cache name in sw.js -->
         <div>
@@ -248,6 +248,30 @@
       <div class="dbtns">
         <button id="ioCancel" class="sec" type="button">Cancel</button>
         <button id="ioGo" type="button">Import</button>
+      </div>
+    </dialog>
+
+    <!-- a to-do's link: text shown and address -->
+    <dialog id="lkDlg">
+      <div class="dt" tabindex="-1" autofocus>Edit link</div>
+      <div class="lbl">Text shown</div>
+      <input id="lkText" autocapitalize="sentences" autocomplete="off" enterkeyhint="next" maxlength="1000" />
+      <div class="lbl">Link</div>
+      <input
+        id="lkUrl"
+        type="url"
+        inputmode="url"
+        autocapitalize="off"
+        autocomplete="off"
+        spellcheck="false"
+        enterkeyhint="done"
+        maxlength="2000"
+        placeholder="https://…"
+      />
+      <div id="lkHint" class="mu" style="margin-top: 6px; font-size: 13px"></div>
+      <div class="dbtns">
+        <button id="lkCancel" class="sec" type="button">Cancel</button>
+        <button id="lkSave" type="button">Save</button>
       </div>
     </dialog>
 

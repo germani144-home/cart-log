@@ -336,3 +336,85 @@ test('shared extra lists: create, rename (chip and card title), delete with its 
   await expect(a.locator('#tlChips .chip')).toHaveText(['🏠 Hjem', '＋ New list']);
   await expect.poll(() => shared(cloud).some((t) => t.text === 'Rake leaves')).toBe(false);
 });
+
+test('a link becomes a short, tappable link that asks before opening, and ✎ edits its text and address', async ({
+  phone,
+  cloud,
+}) => {
+  const a = await phone();
+  await a.context().route(/^https:\/\/(www\.)?ikea\.com\//, (r) => r.fulfill({ contentType: 'text/html', body: 'ok' }));
+  await tab(a, 'todos');
+  await addTodo(a, 'https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/');
+  await addTodo(a, 'javascript:alert(1)'); // never a link
+  await expect.poll(() => todoRows(a)).toEqual(['ikea.com/dk/da/p/billy-bogreol-hvid…', 'javascript:alert(1)']);
+  await expect(a.locator('#tdOpen a.tlink')).toHaveCount(1);
+  const doc = () => shared(cloud).find((t) => t.url);
+  expect(doc()).toMatchObject({
+    text: 'ikea.com/dk/da/p/billy-bogreol-hvid…',
+    url: 'https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/',
+  });
+
+  // Cancel: nothing opens, and the row doesn't go into editing
+  a.answers.push(false);
+  await a.tap('#tdOpen a.tlink');
+  await expect.poll(() => a.dialogs.length).toBe(1);
+  expect(a.dialogs[0]).toContain('Open this link?');
+  expect(a.dialogs[0]).toContain('https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/');
+  await expect(a.locator('#tdOpen textarea')).toHaveCount(0);
+  expect(a.context().pages()).toHaveLength(1);
+  // OK: the page opens
+  const popup = a.context().waitForEvent('page');
+  a.answers.push(true);
+  await a.tap('#tdOpen a.tlink');
+  expect((await popup).url()).toBe('https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/');
+
+  // ✎: new text shown, then removing the link makes it a plain to-do
+  await a.tap('#tdOpen [data-le]');
+  await expect(a.locator('#lkDlg')).toBeVisible();
+  await expect(a.locator('#lkUrl')).toHaveValue('https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/');
+  await a.fill('#lkText', 'Billy shelf');
+  await a.fill('#lkUrl', 'not a link');
+  await a.tap('#lkSave');
+  await expect(a.locator('#lkHint')).toContainText('doesn’t look like a web link');
+  await a.fill('#lkUrl', 'https://ikea.com/billy');
+  await a.tap('#lkSave');
+  await expect(a.locator('#lkDlg')).toBeHidden();
+  await expect(a.locator('#tdOpen a.tlink')).toHaveText('Billy shelf');
+  await expect.poll(() => doc()).toMatchObject({ text: 'Billy shelf', url: 'https://ikea.com/billy' });
+  await a.tap('#tdOpen [data-le]');
+  await a.fill('#lkUrl', '');
+  await a.tap('#lkSave');
+  await expect(a.locator('#tdOpen a.tlink')).toHaveCount(0);
+  await expect.poll(() => shared(cloud).some((t) => 'url' in t)).toBe(false);
+  await expect.poll(() => todoRows(a)).toEqual(['Billy shelf', 'javascript:alert(1)']);
+});
+
+test('words around a link stay as the text, and older to-dos with a link inside the text show it as a link', async ({
+  phone,
+  cloud,
+}) => {
+  cloud.docs[`lists/${LIST}/todos/old`] = {
+    id: 'old',
+    text: 'Recipe at https://a.dk/soup today',
+    done: false,
+    order: 1000,
+    ts: 1,
+  };
+  const a = await phone();
+  await tab(a, 'todos');
+  await expect(a.locator('#tdOpen a.tlink')).toHaveText('a.dk/soup');
+  await expect.poll(() => todoRows(a)).toEqual(['Recipe at a.dk/soup today']);
+  await addTodo(a, 'Shelf: https://ikea.com/x');
+  await expect.poll(() => shared(cloud).find((t) => t.url)).toMatchObject({ text: 'Shelf', url: 'https://ikea.com/x' });
+  await expect(a.locator('#tdOpen a.tlink').nth(1)).toHaveText('Shelf');
+  // tapping beside the text of a link item still edits its text and keeps the link
+  const cell = a.locator('#tdOpen .tdt').nth(1),
+    box = await cell.boundingBox();
+  await cell.tap({ position: { x: box.width - 6, y: box.height / 2 } });
+  await a.keyboard.press('End');
+  await a.keyboard.type(' (white)');
+  await a.keyboard.press('Enter');
+  await expect
+    .poll(() => shared(cloud).find((t) => t.url))
+    .toMatchObject({ text: 'Shelf (white)', url: 'https://ikea.com/x' });
+});
