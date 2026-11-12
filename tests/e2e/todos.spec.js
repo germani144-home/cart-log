@@ -418,3 +418,35 @@ test('words around a link stay as the text, and older to-dos with a link inside 
     .poll(() => shared(cloud).find((t) => t.url))
     .toMatchObject({ text: 'Shelf (white)', url: 'https://ikea.com/x' });
 });
+
+test('Share sends the open to-dos as text to the share sheet, or copies them where there is none', async ({
+  phone,
+}) => {
+  const a = await phone();
+  await a.addInitScript(() => {
+    window.__shared = [];
+    navigator.share = async (d) => window.__shared.push(d);
+  });
+  await a.reload();
+  await tab(a, 'todos');
+  await expect(a.locator('#tdShare')).toBeHidden(); // nothing to share yet
+  for (const t of ['Socks', 'Shelf: https://ikea.com/x', 'Done already']) await addTodo(a, t);
+  await a.tap('#tdOpen .td:has-text("Done already") .tchk');
+  await a.tap('#tdShare');
+  await expect
+    .poll(() => a.evaluate(() => window.__shared))
+    .toEqual([{ text: 'To do\n\n• Socks\n• Shelf: https://ikea.com/x' }]);
+
+  const b = await phone({ device: 'iPhone 13' });
+  await b.evaluate(() => {
+    delete Navigator.prototype.share;
+    window.__copied = [];
+    navigator.clipboard.writeText = async (t) => window.__copied.push(t);
+  });
+  await tab(b, 'todos');
+  await expect(b.locator('#tdShare')).toHaveText('Copy');
+  await b.tap('#tdShare');
+  await expect(b.locator('#tdShare')).toHaveText('Copied ✓');
+  expect(await b.evaluate(() => window.__copied)).toEqual(['To do\n\n• Socks\n• Shelf: https://ikea.com/x']);
+  await expect(b.locator('#tdShare')).toHaveText('Copy');
+});

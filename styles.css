@@ -583,10 +583,14 @@ dialog button.wide {
 }
 .tdl .gh .lnk {
   margin-left: auto;
+  white-space: nowrap;
   color: inherit;
   text-decoration: underline;
   padding: 0 2px;
   font-size: 13px;
+}
+.tdl .gh .hint + .lnk:not([hidden]) {
+  margin-left: 4px;
 }
 .td {
   position: relative;

@@ -218,6 +218,34 @@ $('#lkCancel').onclick = () => $('#lkDlg').close();
   }),
 );
 
+// ---------- sharing a list ----------
+// Share opens the phone's share sheet (Messages, WhatsApp, Mail, Copy…) with the open to-dos as text; where there is
+// no share sheet, the text is copied instead.
+async function shareTodoList() {
+  const b = $('#tdShare'),
+    text = listAsText(listCardTitle(currentList()), openTodos());
+  if (navigator.share) {
+    try {
+      await navigator.share({ text });
+      return;
+    } catch (e) {
+      if (e.name === 'AbortError') return; // closed the share sheet
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    b.dataset.busy = '1';
+    b.textContent = 'Copied ✓';
+    setTimeout(() => {
+      delete b.dataset.busy;
+      renderTodos();
+    }, 1500);
+  } catch {
+    alert('Couldn’t copy the list on this phone.');
+  }
+}
+$('#tdShare').onclick = shareTodoList;
+
 function renderTodos() {
   if (!listCode) return;
   if (dragState || editingTodoId) {
@@ -272,6 +300,8 @@ function renderTodos() {
   }
   $('#tdN').textContent = nItems ? ` · ${nItems}` : '';
   $('#tdTip').textContent = open.length > 1 ? 'hold & drag to reorder' : '';
+  $('#tdShare').hidden = !nItems;
+  if (!$('#tdShare').dataset.busy) $('#tdShare').textContent = navigator.share ? 'Share' : 'Copy';
   $('#tdDoneCard').hidden = !done.length;
   $('#tdDoneN').textContent = ` · ${done.length}`;
   $('#tdDone').innerHTML = done

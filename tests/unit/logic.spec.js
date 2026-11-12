@@ -297,3 +297,17 @@ test('links: only http(s) are safe, and a link is split from the words around it
     { text: ' now' },
   ]);
 });
+
+test('a list as text: title, bullets, headings as blocks, links with their address', () => {
+  expect(
+    L.listAsText('Wishlist', [
+      { text: 'Socks' },
+      { text: 'Shelf', url: 'https://ikea.com/x' },
+      { text: 'ikea.com/billy', url: 'https://www.ikea.com/billy' },
+      { text: 'Books', head: true },
+      { text: 'Dune' },
+    ]),
+  ).toBe('Wishlist\n\n• Socks\n• Shelf: https://ikea.com/x\n• https://www.ikea.com/billy\n\nBooks\n• Dune');
+  expect(L.listAsText('To do', [{ text: 'Kitchen', head: true }, { text: 'Tap' }])).toBe('To do\n\nKitchen\n• Tap');
+  expect(L.listAsText('X', [{ text: 'bad', url: 'javascript:alert(1)' }])).toBe('X\n\n• bad');
+});

@@ -372,6 +372,22 @@ function linkSegments(text) {
   return out;
 }
 
+/** A to-do list as plain text to share or paste: the title, then '• item' lines; headings start a new block, and a
+ *  link item shows its text and the address (just the address when the text is only its short form). */
+function listAsText(title, open) {
+  const lines = [title];
+  if (!open[0] || !open[0].head) lines.push('');
+  for (const t of open) {
+    if (t.head) {
+      lines.push('', t.text);
+      continue;
+    }
+    const url = t.url && safeUrl(t.url);
+    lines.push('• ' + (url ? (t.text === shortUrl(url) ? url : `${t.text}: ${url}`) : t.text));
+  }
+  return lines.join('\n');
+}
+
 // ---------- export / import ----------
 // File: {format:'home-log-export', version:1, exportedAt, appVersion,
 //        shared: {items, catalog, cats, todos, dishes, meta}, private: {todos, meta} | null}
@@ -608,6 +624,7 @@ const versionFromServiceWorker = (text) => (/PREFIX\s*\+\s*'([\d.]+)'/.exec(text
 
 if (typeof module === 'object' && module.exports)
   module.exports = {
+    listAsText,
     normalizeListCode,
     itemKey,
     dishNameKey,
