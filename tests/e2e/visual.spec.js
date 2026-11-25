@@ -46,7 +46,7 @@ for (const scheme of ['light', 'dark']) {
   });
 }
 
-test('item dialog, start screen and to-do list dialog', async ({ phone }) => {
+test('item dialog, start screen, list dialog and a note', async ({ phone }) => {
   const a = await phone();
   await addItem(a, 'Saffranstråde');
   await a.tap('#todo .txt');
@@ -56,6 +56,14 @@ test('item dialog, start screen and to-do list dialog', async ({ phone }) => {
   await tab(a, 'todos');
   await a.tap('#tlChips .chip.add');
   await shot(a, 'list-dialog.png');
+  await a.fill('#tlName', 'Gift ideas');
+  await a.tap('#tlDlg [data-tt="note"]');
+  await a.tap('#tlDlg [data-te="🎁"]');
+  await a.tap('#tlSave');
+  await a.fill('#tdNote', 'Mor\n- Scarf, dark green\n- A good book\n\nBaby\n- Bath book');
+  await a.locator('#tdNote').dispatchEvent('input');
+  await expect(a.locator('#tdTip')).toHaveText('saved ✓');
+  await shot(a, 'note.png');
   const s = await phone({ list: null });
   await shot(s, 'start-screen.png');
 });

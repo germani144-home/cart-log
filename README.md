@@ -1,6 +1,6 @@
 # Home log
 
-A shared grocery list, to-do list and list of dishes for a household, synced live between phones.
+A shared grocery list, to-do lists, notes and a list of dishes for a household, synced live between phones.
 Works on Android and iPhone as an installable web app, no accounts needed, and keeps working offline.
 
 Live: https://germani144-home.github.io/cart-log/ (the repo kept its original name, `cart-log`). It moved from `germani144.github.io` on 2026-10-20 because Chrome on Android installs only one app per address; after the move, enter the list code once on each phone.
@@ -17,9 +17,10 @@ Live: https://germani144-home.github.io/cart-log/ (the repo kept its original na
 - Amount and unit per item (pcs, g, kg, ml, dl, l, pack, can, bottle, bunch) with one-tap − / + right on the row.
 - Tick items into "In the cart", clear them all when you're done shopping.
 
-**To-dos**
-- Several lists, picked with chips at the top of the tab. **Home** is the original shared list (tap it again to rename it or change its icon); **＋ New list** makes another one with a name and icon.
-- Each new list is either **shared** (everyone with the list code sees it) or **private** (🔒, only this phone). Private lists are stored under the phone's own private code, which is never shared; it's shown in ⋯ → *Your private lists*, and *Restore private lists from another phone* brings them back on a new phone. A private list stays private (it can't be turned into a shared one).
+**Notes** (the tab was called To-dos before v5.0)
+- Several lists and notes, picked with chips at the top of the tab. **Home** is the original shared to-do list (tap it again to rename it or change its icon); **＋ New** makes another one with a name, an icon and a **type**: a *list to tick off* or a *note*. The type is chosen once, when it's made.
+- A **note** is one page of free text instead of to-dos (up to 20,000 characters): no add-item box, headings or Done. It saves itself a moment after you stop typing ("saving…" → "saved ✓" in its header) and when you leave it, and syncs like a list. If both phones edit the same note at once, the last save wins; changes from the other phone don't replace the text while you're typing, and show up once you pause. **Share** sends the note's title and text. Its chip's edit dialog renames it, changes its icon or deletes it (it asks first).
+- Each new list or note is either **shared** (everyone with the list code sees it) or **private** (🔒, only this phone). Private lists are stored under the phone's own private code, which is never shared; it's shown in ⋯ → *Your private lists*, and *Restore private lists from another phone* brings them back on a new phone. A private list stays private (it can't be turned into a shared one).
 - Tap the selected list's chip again to rename it, change its icon, or delete it with its to-dos.
 - The title on the list card ("To do" for Home, the list's name for others) can be renamed by tapping it; clearing it brings back the default. Shared lists sync the title, private ones keep it private.
 - Each list is an ordered list of bulleted to-dos (up to 150 open; headings don't count). Tap **H** next to the input to add the next entry as a **heading** instead (it switches back after one); headings group to-dos into sections, show bigger and bolder than to-dos, and have no tick box. Hold and drag a heading to move its whole section (its to-dos fold under it while dragging and come along); drag a single to-do to reorder it within a section or move it to another. To-dos above the first heading stay on top. Deleting a heading asks first; its to-dos stay in the list. Tap the ▾ arrow on a heading to fold its section (the heading shows how many items are hidden); folding is per phone and remembered, and adding an item to a folded last section unfolds it. The tab badge counts the open to-dos (not headings) of the list you're on.
@@ -39,7 +40,7 @@ Live: https://germani144-home.github.io/cart-log/ (the repo kept its original na
 - **Add to grocery list** asks for how many people, shows the scaled amounts, and puts every ingredient on the list. Countable units (pcs, pack, can…) round up. If an ingredient is already on the list, its amount is topped up (g↔kg and ml↔dl↔l are converted); if the units can't be combined, it's left as is and named in the message.
 
 **General**
-- Three tabs (Groceries, To-dos, Recipes); swipe left or right to switch, with live feedback while dragging. On narrow phones the tab icons sit above the labels and counts show as small badges.
+- Three tabs (Groceries, Notes, Recipes); swipe left or right to switch, with live feedback while dragging. On narrow phones the tab icons sit above the labels and counts show as small badges.
 - Share a list with its 8-character code or invite link (`?list=CODE`). Anyone with the code can see and edit it.
 - Opening an invite link joins the list straight away, and the code stays in the address. On iPhone that matters: a home-screen app has its own storage, separate from Safari, so "Add to Home Screen" from that page installs an app that's already in the list. (The installed app only uses that code if it has no list yet, so leaving or switching lists in the app sticks.)
 - Offline-first: changes made without signal sync when the phone is back online.
@@ -71,7 +72,7 @@ Plain static files served by GitHub Pages from `main`: no build step, no framewo
 | `js/groceries.js` | Groceries tab: adding items, suggestions, the item dialog (categories, colours, amounts), the list, the manager |
 | `js/tabs.js` | Switching tabs, and keeping dialogs above the on-screen keyboard |
 | `js/recipes.js` | Recipes tab: dishes, the recipe dialog, adding a dish to the grocery list |
-| `js/todos.js` | To-dos tab: lists (shared and private), headings, folding, editing, hold-and-drag |
+| `js/todos.js` | Notes tab: to-do lists and notes (shared and private), headings, folding, editing, hold-and-drag, links, sharing |
 | `js/gestures.js` | Swiping between tabs, and ignoring stray taps right after a drag |
 | `js/settings.js` | Joining, sharing and leaving a list, the ⋯ menu, private-code restore, updates, starter dishes |
 | `js/backup.js` | Export data / Import data (the rules are in `logic.js`) |
@@ -97,9 +98,10 @@ lists/{code}/cats      custom categories and their colours
 lists/{code}/todos     to-dos (text, url: the link if it has one, order, done, head: true for headings, list: absent for Home, else the list's id)
 lists/{code}/dishes    saved dishes (name, serves, ingredients: [{cid, da, en, amt, unit}])
 lists/{code}/meta      list settings: "dishes" (title of the dish list), "tl_main" (Home's name/icon/card title),
-                       "tl_<id>" (each extra shared to-do list: name, emoji, optional card title)
+                       "tl_<id>" (each extra shared list or note: name, emoji, optional card title;
+                       a note also has type: "note" and body: its text)
 lists/{private}/todos  a phone's private to-dos (same shape)
-lists/{private}/meta   its private lists ("tl_<id>")
+lists/{private}/meta   its private lists and notes ("tl_<id>", same shape)
 ```
 
 Each phone also keeps a copy of everything in `localStorage` (keys `cart-log.<name>`), so the app opens instantly and works offline.
@@ -110,6 +112,8 @@ Each phone also keeps a copy of everything in `localStorage` (keys `cart-log.<na
 - A change is applied to the local copy straight away and written to Firestore. Without signal, Firestore queues the write and sends it later; the dot next to the title shows *live*, *syncing…* (writes still on their way) or *offline*.
 - Firebase runs as a named app (`cart-log`), so its offline database and keys stay separate from other apps on the same address that use the same Firebase project.
 - To-do order: each to-do has an `order` number. A dragged row gets the number halfway between its new neighbours, so only that row changes and two phones reordering at once don't overwrite each other. A dragged heading moves its whole section, spaced evenly between the neighbours. If two neighbours ever get too close, the list is renumbered 1000, 2000, …
+
+- Notes: a note's text is the `body` field of its list document in `meta`, written a moment after typing stops and when the note is left (also when the app is hidden). While a note is being typed in, an incoming change doesn't replace its text; once typing has paused for 2 seconds the other phone's version is taken over (the cursor stays where it was).
 
 ### Private to-do lists
 

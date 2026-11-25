@@ -1,4 +1,4 @@
-// To-dos tab: lists (shared and private), headings, folding, editing and hold-and-drag reordering.
+// Notes tab: lists (shared and private) with headings, folding, editing and hold-and-drag reordering, and notes.
 // ---------- to-dos: ordered lists of bulleted items and headings; ticked ones sink to "Done" ----------
 // "Home" (id main) is the original shared list: its to-dos have no list field. Extra lists are described by
 // meta docs "tl_<id>" {id,kind:'tl',name,emoji,ts}: shared ones under the list code (lists/{code}/meta + todos),
@@ -218,12 +218,96 @@ $('#lkCancel').onclick = () => $('#lkDlg').close();
   }),
 );
 
+// ---------- notes ----------
+// A note is a list of type 'note': one page of free text kept in `body` on its list document (meta), synced like the
+// list's name. Typing saves after a short pause and when leaving the note; while the note is being typed in, changes
+// from the other phone don't replace the text (last save wins); they show once typing pauses for a moment.
+const isNote = (l) => !!l && l.type === 'note';
+let noteFor = null, // id of the note shown in the textarea
+  noteDirty = false,
+  noteTimer = null,
+  noteTypedAt = 0;
+function writeListMeta(d, priv) {
+  if (priv) {
+    privateMeta[d.id] = d;
+    save('cl_pmeta', privateMeta);
+    writePrivate('meta', d);
+  } else {
+    listMeta[d.id] = d;
+    save('cl_meta', listMeta);
+    writeShared('meta', d);
+  }
+}
+function saveNote() {
+  clearTimeout(noteTimer);
+  noteTimer = null;
+  if (!noteDirty || !noteFor) return;
+  noteDirty = false;
+  const l = todoListById(noteFor),
+    old = l && (l.priv ? privateMeta : listMeta)[l.id];
+  if (!old || !isNote(old)) return;
+  writeListMeta({ ...old, body: $('#tdNote').value.slice(0, NOTE_MAX) }, l.priv);
+  noteStatus();
+}
+function fitNote() {
+  const ta = $('#tdNote');
+  if (!ta.offsetParent) return; // not on screen: nothing to measure
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(320, ta.scrollHeight + 2) + 'px';
+}
+function noteStatus() {
+  const v = $('#tdNote').value.trim();
+  $('#tdTip').textContent = noteDirty ? 'saving…' : v ? 'saved ✓' : '';
+  $('#tdShare').hidden = !v;
+}
+function renderNote(l) {
+  const ta = $('#tdNote');
+  if (noteFor !== l.id) {
+    if (noteFor) saveNote();
+    noteFor = l.id;
+    noteDirty = false;
+    ta.value = l.body || '';
+  } else if (!noteDirty && ta.value !== (l.body || '')) {
+    // the other phone changed it: take that over, unless it is being typed in right now (cursor kept in place)
+    const focused = document.activeElement === ta;
+    if (!focused || Date.now() - noteTypedAt > 2000) {
+      const [a, b] = [ta.selectionStart, ta.selectionEnd];
+      ta.value = l.body || '';
+      if (focused) ta.setSelectionRange(Math.min(a, ta.value.length), Math.min(b, ta.value.length));
+    } else setTimeout(renderTodos, 2100 - (Date.now() - noteTypedAt)); // try again once typing has paused
+  }
+  $('#tdN').textContent = '';
+  $('#cntT').textContent = '';
+  if (!$('#tdShare').dataset.busy) $('#tdShare').textContent = navigator.share ? 'Share' : 'Copy';
+  noteStatus();
+  fitNote();
+}
+$('#tdNote').addEventListener('input', () => {
+  noteDirty = true;
+  noteTypedAt = Date.now();
+  noteStatus();
+  fitNote();
+  clearTimeout(noteTimer);
+  noteTimer = setTimeout(saveNote, 700);
+});
+$('#tdNote').addEventListener('blur', () => {
+  saveNote();
+  renderTodos(); // pick up changes made on the other phone meanwhile
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) saveNote();
+});
+window.addEventListener('pagehide', saveNote);
+
 // ---------- sharing a list ----------
 // Share opens the phone's share sheet (Messages, WhatsApp, Mail, Copy…) with the open to-dos as text; where there is
 // no share sheet, the text is copied instead.
 async function shareTodoList() {
-  const b = $('#tdShare'),
-    text = listAsText(listCardTitle(currentList()), openTodos());
+  const l = currentList(),
+    b = $('#tdShare'),
+    text = isNote(l)
+      ? `${listCardTitle(l)}\n\n${$('#tdNote').value.trim()}`
+      : listAsText(listCardTitle(l), openTodos());
   if (navigator.share) {
     try {
       await navigator.share({ text });
@@ -254,6 +338,11 @@ function renderTodos() {
   } // never rebuild the DOM under a finger or a cursor
   todosNeedRedraw = false;
   drawListChips();
+  const cl = currentList();
+  $('#paneT').classList.toggle('notemode', isNote(cl));
+  if (isNote(cl)) return renderNote(cl);
+  if (noteFor) saveNote(); // left a note: keep what was typed
+  noteFor = null;
   const open = openTodos(),
     done = currentListTodos()
       .filter((t) => t.done)
@@ -371,29 +460,32 @@ $('#tdClear').onclick = () => {
 };
 
 // list chips: tap to switch, tap the current one to edit it, ＋ to make a new list
+let chipsHtml = '';
 function drawListChips() {
   const ls = allTodoLists();
   if (!ls.some((l) => l.id === currentListId)) {
     currentListId = 'main';
     save('cl_tdlist', currentListId);
   }
-  $('#tlChips').innerHTML =
+  const chips =
     ls
       .map(
         (l) =>
           `<button type="button" class="chip${l.id === currentListId ? ' on' : ''}" data-tl="${esc(l.id)}">${esc(l.emoji || '📝')} ${esc(l.name)}${l.priv ? ' 🔒' : ''}</button>`,
       )
-      .join('') + `<button type="button" class="chip add" data-tl="+">＋ New list</button>`;
+      .join('') + `<button type="button" class="chip add" data-tl="+">＋ New</button>`;
+  // unchanged: keep the buttons, a tap may be landing on one (leaving a note redraws the tab)
+  if (chipsHtml !== chips) $('#tlChips').innerHTML = chipsHtml = chips;
   const c = currentList();
   $('#tdTitle').textContent = listCardTitle(c) + (c.priv ? ' 🔒' : '');
 }
-let listDialog = null; // dialog state {id|null, name, emoji, priv}
+let listDialog = null; // dialog state {id|null, emoji, priv, type}
 // the title on the list card: its own title if set, else "To do" for Home and the list's name for the others.
 // Tap it to rename; it's stored on the list (shared lists sync it, private ones stay private).
 const listCardTitle = (l) => l.title || (l.id === 'main' ? 'To do' : l.name);
 function renameListTitle() {
   const l = currentList(),
-    v = prompt('Title of this list', listCardTitle(l));
+    v = prompt(isNote(l) ? 'Title of this note' : 'Title of this list', listCardTitle(l));
   if (v == null) return;
   const t = v.trim().replace(/\s+/g, ' ').slice(0, 40);
   if (l.id === 'main') {
@@ -425,11 +517,15 @@ $('#tdTitle').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') renameListTitle();
 });
 function openListDialog(l) {
-  listDialog = l ? { id: l.id, emoji: l.emoji || '📝', priv: l.priv } : { id: null, emoji: '📝', priv: true };
-  $('#tlHead').textContent = l ? 'Edit list' : 'New list';
+  listDialog = l
+    ? { id: l.id, emoji: l.emoji || '📝', priv: l.priv, type: isNote(l) ? 'note' : 'list' }
+    : { id: null, emoji: '📝', priv: true, type: 'list' };
+  $('#tlHead').textContent = !l ? 'New list or note' : isNote(l) ? 'Edit note' : 'Edit list';
   $('#tlName').value = l ? l.name : '';
   $('#tlKindBox').hidden = !!l;
+  $('#tlTypeBox').hidden = !!l; // the type is chosen once, when it's made
   $('#tlDel').hidden = !l || l.id === 'main';
+  $('#tlDel').textContent = l && isNote(l) ? 'Delete note' : 'Delete list and its to-dos';
   drawListDialog();
   $('#tlDlg').showModal();
   $('#tlHead').focus();
@@ -441,6 +537,13 @@ function drawListDialog() {
   document
     .querySelectorAll('#tlDlg [data-tk]')
     .forEach((b) => b.classList.toggle('sel', (b.dataset.tk === 'priv') === listDialog.priv));
+  document
+    .querySelectorAll('#tlDlg [data-tt]')
+    .forEach((b) => b.classList.toggle('sel', b.dataset.tt === listDialog.type));
+  $('#tlTypeHint').textContent =
+    listDialog.type === 'note'
+      ? 'A page of free text you can edit: wishlists, plans, door codes…'
+      : 'To-dos to tick off, with headings and drag to reorder.';
   $('#tlKindHint').textContent = listDialog.priv
     ? "Stays on your phone's private code: other phones on this list never see it."
     : 'Everyone with the list code sees it, like the Home list.';
@@ -457,7 +560,12 @@ $('#tlChips').addEventListener('click', (e) => {
 });
 $('#tlDlg').addEventListener('click', (e) => {
   const em = e.target.closest('[data-te]'),
-    k = e.target.closest('[data-tk]');
+    k = e.target.closest('[data-tk]'),
+    ty = e.target.closest('[data-tt]');
+  if (ty) {
+    listDialog.type = ty.dataset.tt;
+    drawListDialog();
+  }
   if (em) {
     listDialog.emoji = em.dataset.te;
     drawListDialog();
@@ -491,6 +599,13 @@ function saveListDialog() {
       emoji: listDialog.emoji,
       ts: old ? old.ts : Date.now(),
       ...(old && old.title ? { title: old.title } : {}),
+      ...(old
+        ? isNote(old)
+          ? { type: 'note', body: old.body || '' }
+          : {}
+        : listDialog.type === 'note'
+          ? { type: 'note', body: '' }
+          : {}),
     };
     if (priv) {
       const first = !privateCode;
@@ -525,8 +640,19 @@ $('#tlDel').onclick = () => {
   const l = todoListById(listDialog.id);
   if (!l || l.id === 'main') return;
   const mine = (l.priv ? privateTodos : todos).filter((t) => t.list === l.id);
-  if (!confirm(`Delete "${l.name}"${mine.length ? ` and its ${mine.length} to-do${mine.length > 1 ? 's' : ''}` : ''}?`))
+  if (
+    isNote(l)
+      ? !confirm(`Delete the note "${l.name}"?`)
+      : !confirm(
+          `Delete "${l.name}"${mine.length ? ` and its ${mine.length} to-do${mine.length > 1 ? 's' : ''}` : ''}?`,
+        )
+  )
     return;
+  if (noteFor === l.id) {
+    clearTimeout(noteTimer);
+    noteDirty = false;
+    noteFor = null;
+  }
   mine.forEach((t) => removeTodo(t.id));
   if (l.priv) {
     delete privateMeta[l.id];

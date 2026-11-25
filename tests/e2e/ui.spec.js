@@ -4,7 +4,7 @@ const { test, expect, LIST, addItem, groceryNames, swipe, tab, currentTab } = re
 test('tabs switch by tap and by swipe, and the last tab is remembered', async ({ phone }) => {
   const a = await phone();
   expect(await currentTab(a)).toBe('groceries');
-  await expect(a.locator('.tab')).toHaveText([/Groceries/, /To-dos/, /Recipes/]);
+  await expect(a.locator('.tab')).toHaveText([/Groceries/, /Notes/, /Recipes/]);
   const seq = [];
   for (const dir of ['left', 'left', 'left', 'right', 'right', 'right']) {
     await swipe(a, dir);

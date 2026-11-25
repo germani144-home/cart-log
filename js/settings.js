@@ -43,7 +43,7 @@ function drawPrivateCode() {
   $('#meShow').textContent = privateCode;
   $('#meInfo').textContent = privateCode
     ? "Private lists are stored under this phone's own code. Keep it to get them back on a new phone (Restore there). Don't share it."
-    : 'None yet. Make one in To-dos with ＋ New list → Private.';
+    : 'None yet. Make one in Notes with ＋ New → Private.';
 }
 $('#meBtn').onclick = () => {
   const v = normalizeListCode(prompt('Private code from your other phone', '') || '');

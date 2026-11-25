@@ -21,7 +21,7 @@
     <div id="setup" class="setup" hidden>
       <img src="icon-192.png" width="76" height="76" alt="" style="border-radius: 19px" />
       <h1>Home log</h1>
-      <div class="mu">Shared groceries and to-dos, synced live.</div>
+      <div class="mu">Shared groceries, to-dos and notes, synced live.</div>
       <div class="card">
         <button id="create">Create a new list</button>
         <div class="mu" style="text-align: center; margin: 14px 0 6px">or join an existing one</div>
@@ -43,7 +43,7 @@
     <div id="main" hidden>
       <header>
         <h1 class="brand">
-          <img src="icon-192.png" width="30" height="30" alt="" />Home log<span class="ver" id="ver">v4.8</span>
+          <img src="icon-192.png" width="30" height="30" alt="" />Home log<span class="ver" id="ver">v5.0</span>
         </h1>
         <!-- version: bump together with the cache name in sw.js -->
         <div>
@@ -56,7 +56,7 @@
           <span class="ti">🛒</span> Groceries <span class="cnt" id="cntG"></span>
         </button>
         <button class="tab" data-tab="t" role="tab" aria-selected="false">
-          <span class="ti">📝</span> To-dos <span class="cnt" id="cntT"></span>
+          <span class="ti">📝</span> Notes <span class="cnt" id="cntT"></span>
         </button>
         <button class="tab" data-tab="d" role="tab" aria-selected="false"><span class="ti">🍽️</span> Recipes</button>
       </nav>
@@ -103,6 +103,14 @@
             ><button class="lnk" id="tdShare" type="button" hidden>Share</button>
           </div>
           <div id="tdOpen" style="position: relative"></div>
+          <textarea
+            id="tdNote"
+            class="note"
+            placeholder="Write anything…"
+            autocapitalize="sentences"
+            maxlength="20000"
+            aria-label="Note"
+          ></textarea>
         </div>
         <div id="tdDoneCard" class="list tdl" style="--c: #5f6b7a; --t: #fff; margin-top: 12px" hidden>
           <div class="gh">
@@ -218,6 +226,14 @@
       <div class="dt" id="tlHead" tabindex="-1" autofocus></div>
       <div class="lbl">Name</div>
       <input id="tlName" autocapitalize="sentences" autocomplete="off" enterkeyhint="done" maxlength="30" />
+      <div id="tlTypeBox">
+        <div class="lbl">Type</div>
+        <div class="chips">
+          <button type="button" class="chip" data-tt="list">☑️ List to tick off</button>
+          <button type="button" class="chip" data-tt="note">📄 Note</button>
+        </div>
+        <div id="tlTypeHint" class="mu" style="margin-top: 6px; font-size: 13px"></div>
+      </div>
       <div class="lbl">Icon</div>
       <div id="tlEmo" class="chips"></div>
       <div id="tlKindBox">
