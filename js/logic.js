@@ -393,6 +393,8 @@ function listAsText(title, open) {
 //        shared: {items, catalog, cats, todos, dishes, meta}, private: {todos, meta} | null}
 // Only known fields are exported, and an import is checked completely before anything is written.
 
+/** A note's text is kept on its list document, so it has a cap well under Firestore's 1 MB per document. */
+const NOTE_MAX = 20000;
 const EXP_FORMAT = 'home-log-export',
   EXP_VERSION = 1;
 /** Field checks: each returns true, or a short reason the value is wrong. */
@@ -478,7 +480,16 @@ const metaSpec = (id, priv) =>
     : !priv && id === 'tl_main'
       ? { id: V.id, kind: V.is('tlmain'), name: V.str(30), emoji: V.str(16), title: V.str(40) }
       : /^tl_/.test(id)
-        ? { id: V.id, kind: V.is('tl'), name: V.str(30), emoji: V.str(16), ts: V.ts, title: V.str(40) }
+        ? {
+            id: V.id,
+            kind: V.is('tl'),
+            name: V.str(30),
+            emoji: V.str(16),
+            ts: V.ts,
+            title: V.str(40),
+            type: V.is('note'),
+            body: V.str(NOTE_MAX),
+          }
         : null;
 const SHARED_COLLECTIONS = ['items', 'catalog', 'cats', 'todos', 'dishes', 'meta'],
   PRIVATE_COLLECTIONS = ['todos', 'meta'];
@@ -624,6 +635,7 @@ const versionFromServiceWorker = (text) => (/PREFIX\s*\+\s*'([\d.]+)'/.exec(text
 
 if (typeof module === 'object' && module.exports)
   module.exports = {
+    NOTE_MAX,
     listAsText,
     normalizeListCode,
     itemKey,

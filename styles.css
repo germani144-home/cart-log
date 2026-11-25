@@ -1019,3 +1019,29 @@ body.dragging {
   outline: 2px solid var(--ac);
   outline-offset: -2px;
 }
+
+/* notes: a list of type 'note' shows one page of text instead of to-dos */
+#paneT.notemode #tdForm,
+#paneT.notemode #tdHint,
+#paneT.notemode #tdOpen,
+#paneT.notemode #tdDoneCard,
+#paneT:not(.notemode) #tdNote {
+  display: none !important;
+}
+#tdNote {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 320px;
+  border: 0;
+  border-radius: 0;
+  padding: 14px;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--td) 5%, var(--card));
+  color: var(--tx);
+  resize: none;
+  outline: none;
+  overflow: hidden;
+}

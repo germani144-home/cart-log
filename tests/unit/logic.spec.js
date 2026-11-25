@@ -311,3 +311,11 @@ test('a list as text: title, bullets, headings as blocks, links with their addre
   expect(L.listAsText('To do', [{ text: 'Kitchen', head: true }, { text: 'Tap' }])).toBe('To do\n\nKitchen\n• Tap');
   expect(L.listAsText('X', [{ text: 'bad', url: 'javascript:alert(1)' }])).toBe('X\n\n• bad');
 });
+
+test('notes: a list document may be a note with its text, which survives export checks', () => {
+  const file = (meta) => ({ format: L.EXP_FORMAT, version: L.EXP_VERSION, shared: { meta }, private: null });
+  const note = { id: 'tl_x', kind: 'tl', name: 'Gifts', emoji: '🎁', ts: 1, type: 'note', body: 'Mor\n- Scarf' };
+  expect(L.validateExport(file([note])).data.shared.meta[0]).toEqual(note);
+  expect(L.validateExport(file([{ ...note, type: 'board' }])).errors[0]).toContain('must be "note"');
+  expect(L.validateExport(file([{ ...note, body: 'x'.repeat(L.NOTE_MAX + 1) }])).errors[0]).toContain('max 20000');
+});

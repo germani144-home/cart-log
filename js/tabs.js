@@ -35,7 +35,7 @@ document.addEventListener('focusin', (e) => {
 
 // ---------- tabs ----------
 const TAB_ORDER = ['g', 't', 'd'],
-  TAB_NAMES = { g: 'Groceries', t: 'To-dos', d: 'Recipes' },
+  TAB_NAMES = { g: 'Groceries', t: 'Notes', d: 'Recipes' },
   TAB_PANES = { g: '#paneG', t: '#paneT', d: '#paneD' };
 let currentTab = load('cl_tab', 'g');
 function setTab(t, dir) {
@@ -43,6 +43,7 @@ function setTab(t, dir) {
   currentTab = TAB_ORDER.includes(t) ? t : 'g';
   save('cl_tab', currentTab);
   TAB_ORDER.forEach((k) => ($(TAB_PANES[k]).hidden = k !== currentTab));
+  if (currentTab === 't' && typeof fitNote === 'function') fitNote(); // a note sizes itself only when on screen
   document.querySelectorAll('.tab').forEach((b) => {
     const on = b.dataset.tab === currentTab;
     b.classList.toggle('on', on);

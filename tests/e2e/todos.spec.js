@@ -1,4 +1,4 @@
-// To-dos tab: shared Home list, headings, drag order, folding, paste import, extra and private lists.
+// Notes tab: shared Home list, headings, drag order, folding, paste import, extra and private lists.
 const { test, expect, LIST, addTodo, todoRows, dragTodo, paste, tab, touch } = require('../fixtures');
 
 const shared = (cloud) => cloud.list(`lists/${LIST}/todos`);
@@ -282,7 +282,7 @@ test('a private list lives under this phone’s own code and never reaches the o
     expect.objectContaining({ kind: 'tl', name: 'Bike fleet', emoji: '🚲' }),
   ]);
   expect(JSON.stringify(cloud.keys(`lists/${LIST}/`).map((k) => cloud.docs[k]))).not.toContain('Bike fleet');
-  await expect(b.locator('#tlChips .chip')).toHaveText(['🏠 Home', '＋ New list']);
+  await expect(b.locator('#tlChips .chip')).toHaveText(['🏠 Home', '＋ New']);
   // the private code shows only in the menu
   await a.tap('#menu');
   await expect(a.locator('#meShow')).toHaveText(me);
@@ -295,7 +295,7 @@ test('a private list lives under this phone’s own code and never reaches the o
   await c.tap('#menu');
   await c.tap('#meBtn');
   await c.evaluate(() => document.querySelector('#dlg').close());
-  await expect(c.locator('#tlChips .chip')).toHaveText(['🏠 Home', '🚲 Bike fleet 🔒', '＋ New list']);
+  await expect(c.locator('#tlChips .chip')).toHaveText(['🏠 Home', '🚲 Bike fleet 🔒', '＋ New']);
 });
 
 test('shared extra lists: create, rename (chip and card title), delete with its to-dos', async ({ phone, cloud }) => {
@@ -309,7 +309,7 @@ test('shared extra lists: create, rename (chip and card title), delete with its 
   await a.tap('#tlEmo [data-te="🌱"]');
   await a.tap('#tlSave');
   await addTodo(a, 'Rake leaves');
-  await expect(b.locator('#tlChips .chip')).toHaveText(['🏠 Home', '🌱 Weekend', '＋ New list']);
+  await expect(b.locator('#tlChips .chip')).toHaveText(['🏠 Home', '🌱 Weekend', '＋ New']);
   const doc = shared(cloud).find((t) => t.text === 'Rake leaves');
   expect(doc.list).toMatch(/^tl_/);
 
@@ -333,7 +333,7 @@ test('shared extra lists: create, rename (chip and card title), delete with its 
   await b.tap('#tlChips .chip.on');
   b.answers.push(true);
   await b.tap('#tlDel');
-  await expect(a.locator('#tlChips .chip')).toHaveText(['🏠 Hjem', '＋ New list']);
+  await expect(a.locator('#tlChips .chip')).toHaveText(['🏠 Hjem', '＋ New']);
   await expect.poll(() => shared(cloud).some((t) => t.text === 'Rake leaves')).toBe(false);
 });
 
@@ -366,7 +366,7 @@ test('a link becomes a short, tappable link that asks before opening, and ✎ ed
   const popup = a.context().waitForEvent('page');
   a.answers.push(true);
   await a.tap('#tdOpen a.tlink');
-  expect((await popup).url()).toBe('https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/');
+  await (await popup).waitForURL('https://www.ikea.com/dk/da/p/billy-bogreol-hvid-00263850/');
 
   // ✎: new text shown, then removing the link makes it a plain to-do
   await a.tap('#tdOpen [data-le]');
@@ -449,4 +449,124 @@ test('Share sends the open to-dos as text to the share sheet, or copies them whe
   await expect(b.locator('#tdShare')).toHaveText('Copied ✓');
   expect(await b.evaluate(() => window.__copied)).toEqual(['To do\n\n• Socks\n• Shelf: https://ikea.com/x']);
   await expect(b.locator('#tdShare')).toHaveText('Copy');
+});
+
+// ---------- notes ----------
+const meta = (cloud) => cloud.list(`lists/${LIST}/meta`);
+
+test('a shared note: made from ＋ New, typed on one phone, read and edited on the other, shared, deleted', async ({
+  phone,
+  cloud,
+}) => {
+  const a = await phone();
+  const b = await phone({ device: 'iPhone 13' });
+  await tab(a, 'todos');
+  await tab(b, 'todos');
+  await a.tap('#tlChips [data-tl="+"]');
+  await expect(a.locator('#tlHead')).toHaveText('New list or note');
+  await a.fill('#tlName', 'Gift ideas');
+  await a.tap('#tlDlg [data-tt="note"]');
+  await a.tap('#tlDlg [data-tk="shared"]');
+  await a.tap('#tlSave');
+  await expect(a.locator('#tdNote')).toBeVisible();
+  await expect(a.locator('#tdForm')).toBeHidden(); // no add-item box on a note
+  await expect(a.locator('#tdShare')).toBeHidden(); // nothing to share yet
+  await expect
+    .poll(() => meta(cloud).find((m) => m.name === 'Gift ideas'))
+    .toMatchObject({ kind: 'tl', type: 'note', body: '' });
+
+  await a.tap('#tdNote');
+  await a.keyboard.type('Mor\n- Scarf');
+  await expect(a.locator('#tdTip')).toHaveText('saving…');
+  await expect(a.locator('#tdTip')).toHaveText('saved ✓');
+  await expect.poll(() => meta(cloud).find((m) => m.type === 'note')?.body).toBe('Mor\n- Scarf');
+
+  // the other phone sees it, and can add to it
+  await b.tap('#tlChips .chip >> text=Gift ideas');
+  await expect(b.locator('#tdNote')).toHaveValue('Mor\n- Scarf');
+  await b.locator('#tdNote').focus();
+  await b.keyboard.press('Control+End');
+  await b.keyboard.type('\n- Book');
+  await b.locator('#tdTitle').tap(); // leaving the text saves at once
+  b.answers.push(false); // (the title tap asks for a new title: cancel)
+  await expect.poll(() => meta(cloud).find((m) => m.type === 'note')?.body).toBe('Mor\n- Scarf\n- Book');
+  await expect(a.locator('#tdNote')).toHaveValue('Mor\n- Scarf\n- Book');
+
+  // a list stays a list next to it
+  await a.tap('#tlChips .chip >> text=Home');
+  await expect(a.locator('#tdForm')).toBeVisible();
+  await expect(a.locator('#tdNote')).toBeHidden();
+  await a.tap('#tlChips .chip >> text=Gift ideas');
+
+  // share sends the title and the text
+  await a.evaluate(() => {
+    window.__copied = [];
+    navigator.clipboard.writeText = async (t) => window.__copied.push(t);
+  });
+  await a.tap('#tdShare');
+  await expect.poll(() => a.evaluate(() => window.__copied)).toEqual(['Gift ideas\n\nMor\n- Scarf\n- Book']);
+
+  // editing it can't change its type; deleting asks first
+  await a.tap('#tlChips .chip.on');
+  await expect(a.locator('#tlHead')).toHaveText('Edit note');
+  await expect(a.locator('#tlTypeBox')).toBeHidden();
+  await a.fill('#tlName', 'Gifts');
+  await a.tap('#tlSave');
+  await expect
+    .poll(() => meta(cloud).find((m) => m.type === 'note'))
+    .toMatchObject({ name: 'Gifts', body: 'Mor\n- Scarf\n- Book' });
+  await a.tap('#tlChips .chip.on');
+  await expect(a.locator('#tlDel')).toHaveText('Delete note');
+  a.answers.push(true);
+  await a.tap('#tlDel');
+  expect(a.dialogs.pop()).toBe('Delete the note "Gifts"?');
+  await expect.poll(() => meta(cloud).some((m) => m.type === 'note')).toBe(false);
+  await expect(b.locator('#tlChips .chip')).toHaveText(['🏠 Home', '＋ New']);
+});
+
+test('while typing in a note, a change from the other phone doesn’t replace the text', async ({ phone, cloud }) => {
+  cloud.docs[`lists/${LIST}/meta/tl_n`] = {
+    id: 'tl_n',
+    kind: 'tl',
+    name: 'Plans',
+    emoji: '📝',
+    ts: 1,
+    type: 'note',
+    body: 'One',
+  };
+  const a = await phone();
+  await tab(a, 'todos');
+  await a.tap('#tlChips .chip >> text=Plans');
+  await a.locator('#tdNote').focus();
+  await a.keyboard.press('Control+End');
+  await a.keyboard.type(' two');
+  // the other phone saves meanwhile (cloud write straight into this phone's fake SDK)
+  await a.evaluate(() =>
+    window.__fakeApply('lists/TESTLIST/meta/tl_n', {
+      id: 'tl_n',
+      kind: 'tl',
+      name: 'Plans',
+      emoji: '📝',
+      ts: 1,
+      type: 'note',
+      body: 'Other',
+    }),
+  );
+  await expect(a.locator('#tdNote')).toHaveValue('One two');
+  await expect.poll(() => cloud.docs['lists/TESTLIST/meta/tl_n'].body).toBe('One two'); // last save wins
+});
+
+test('a private note stays under this phone’s own code', async ({ phone, cloud }) => {
+  const a = await phone();
+  await tab(a, 'todos');
+  await a.tap('#tlChips [data-tl="+"]');
+  await a.fill('#tlName', 'Codes');
+  await a.tap('#tlDlg [data-tt="note"]');
+  await a.tap('#tlSave'); // private is the default
+  await a.tap('#tdNote');
+  await a.keyboard.type('Door 1234');
+  await expect.poll(() => cloud.keys('lists/').filter((k) => k.includes('/meta/tl_')).length).toBe(1);
+  const key = cloud.keys('lists/').find((k) => k.includes('/meta/tl_'));
+  expect(key.startsWith(`lists/${LIST}/`)).toBe(false);
+  await expect.poll(() => cloud.docs[key].body).toBe('Door 1234');
 });
