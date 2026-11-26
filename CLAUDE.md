@@ -1,5 +1,10 @@
 # Working on Home log (repo: cart-log)
 
+**If this repository is a copy (a fork, not germani144-home/cart-log):** you are most likely helping someone run their
+own Home log. Follow `SETUP.md` and change only `firebase-config.js`. These rules apply to every copy: never commit list
+codes (shared or private) or personal lists and exports, and never change the manifest `id`. The rest of this file
+(Pedro's chats, releases, his addresses and Firebase project) is about the original only.
+
 Rules for any Claude chat working on this repo.
 
 ## Scope
@@ -21,7 +26,8 @@ Rules for any Claude chat working on this repo.
 - README "How it works" describes the files, data layout, sync and tests; keep it in step.
 
 ## Don'ts
-- Keep personal details (Firebase project sharing, names) out of public files like the README.
+- Keep personal details (Firebase project sharing, names) out of public files like the README and SETUP.md.
+- Don't change `firebase-config.js` unless the Firebase project itself changes: every fork replaces that file, so any change to it here makes "Sync fork" conflict in every copy. Keep SETUP.md in step with the app (setup screen, ⋯ menu, rules shape, private codes).
 - Firestore data lives under `lists/{code}/{items|catalog|cats|todos|dishes|meta}`; don't move it without a migration, or existing lists disappear.
 - Private to-do lists live under each phone's own private code (`localStorage` `cart-log.me`): `lists/{me}/{todos|meta}`. Never write private data under the shared list code, and never show the private code anywhere but the ⋯ menu. Home's to-dos have no `list` field; keep it that way so older data still shows.
 

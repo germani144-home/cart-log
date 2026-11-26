@@ -165,14 +165,12 @@ match /lists/{listId}/{sub}/{id} {
 
 Anyone can open the app, but with any other code nothing syncs: it can't read, write or create a list. **A new list (or a new private to-do list) only works after its code is added to the rules** in the Firebase console (Firestore → Rules → Publish). The same rules also cover Nap Log, which shares the Firebase project. The web config in `firebase-config.js` is not a secret.
 
-## Running your own copy
+## Run your own copy
 
-1. Copy the files into your own repo and enable GitHub Pages (branch `main`, root).
-2. Create a Firebase project, add a Firestore database, and publish the rule above.
-3. Register a web app in Firebase and paste its config into `firebase-config.js`.
-4. Open the Pages URL, create a list, and install it to the home screen.
-
-Without a config the app still runs, but the list stays on that one phone ("local only").
+This copy syncs through its owner's Firebase project, so friends can't use it as it is. To run your own (free, your
+own address and database, no coding), fork the repository and follow [SETUP.md](SETUP.md): GitHub Pages, your own
+Firebase project, your own list codes in the rules, and `firebase-config.js` as the only file you change. You can hand
+SETUP.md to Claude and it will walk you through it.
 
 ### Export file format
 
