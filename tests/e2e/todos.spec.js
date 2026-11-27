@@ -470,6 +470,8 @@ test('a shared note: made from ＋ New, typed on one phone, read and edited on t
   await a.tap('#tlSave');
   await expect(a.locator('#tdNote')).toBeVisible();
   await expect(a.locator('#tdForm')).toBeHidden(); // no add-item box on a note
+  // no browser spell-check menu: on Android, typing while it was open closed the keyboard
+  await expect(a.locator('#tdNote')).toHaveAttribute('spellcheck', 'false');
   await expect(a.locator('#tdShare')).toBeHidden(); // nothing to share yet
   await expect
     .poll(() => meta(cloud).find((m) => m.name === 'Gift ideas'))
